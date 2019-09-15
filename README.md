@@ -1,3 +1,8 @@
+Express Mobile hack for the FBC hackathon
+=========================================
+
+This hack demonstrates multi-hop mesh forwarding using Bluetooth. It is built on the BluetoothChat open source project at https://github.com/android/connectivity
+
 
 Android BluetoothChat Sample
 ===================================
