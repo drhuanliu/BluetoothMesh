@@ -16,6 +16,7 @@
 
 package com.example.android.bluetoothchat;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -25,6 +26,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
 import android.view.View;
 import android.view.Window;
 import android.widget.AdapterView;
@@ -101,12 +103,14 @@ public class DeviceListActivity extends Activity {
         newDevicesListView.setAdapter(mNewDevicesArrayAdapter);
         newDevicesListView.setOnItemClickListener(mDeviceClickListener);
 
+        IntentFilter filter = new IntentFilter();
         // Register for broadcasts when a device is discovered
-        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        this.registerReceiver(mReceiver, filter);
-
+        filter.addAction(BluetoothDevice.ACTION_FOUND);
         // Register for broadcasts when discovery has finished
-        filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+
+        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
         this.registerReceiver(mReceiver, filter);
 
         // Get the local Bluetooth adapter
@@ -156,7 +160,11 @@ public class DeviceListActivity extends Activity {
         // Turn on sub-title for new devices
         findViewById(R.id.title_new_devices).setVisibility(View.VISIBLE);
 
-        mBtAdapter.enable();
+        // May need this on some platforms to get permission to scan for Bluetooth devices
+//        int MY_PERMISSIONS_REQUEST_ACCESS_COARSE_LOCATION = 1;
+//        ActivityCompat.requestPermissions(this,
+//                new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+//                MY_PERMISSIONS_REQUEST_ACCESS_COARSE_LOCATION);
         // If we're already discovering, stop it
         if (mBtAdapter.isDiscovering()) {
             mBtAdapter.cancelDiscovery();
