@@ -199,6 +199,12 @@ public class BluetoothChatFragment extends Fragment {
         }
     }
 
+    private void startBLEServer() {
+        mChatService.createGattServer();
+        mChatService.startAdvertising();
+    }
+
+
     /**
      * Sends a message.
      *
@@ -393,6 +399,10 @@ public class BluetoothChatFragment extends Fragment {
             case R.id.discoverable: {
                 // Ensure this device is discoverable by others
                 ensureDiscoverable();
+                return true;
+            }
+            case R.id.startGattServer: {
+                startBLEServer();
                 return true;
             }
         }

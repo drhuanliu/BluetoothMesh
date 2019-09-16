@@ -31,4 +31,14 @@
         android:showAsAction="never"
         android:title="@string/discoverable"/>
 
+    <item
+        android:id="@+id/startGattServer"
+        android:showAsAction="never"
+        android:title="Start GATT server"/>
+
+    <item
+        android:id="@+id/searchBLE"
+        android:showAsAction="never"
+        android:title="Search BLE device"/>
+
 </menu>
