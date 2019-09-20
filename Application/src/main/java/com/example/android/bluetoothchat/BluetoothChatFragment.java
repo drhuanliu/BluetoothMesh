@@ -204,6 +204,10 @@ public class BluetoothChatFragment extends Fragment {
         mChatService.startAdvertising();
     }
 
+    private void searchBLE() {
+        mChatService.startScanLeDevice();
+    }
+
 
     /**
      * Sends a message.
@@ -281,6 +285,7 @@ public class BluetoothChatFragment extends Fragment {
     /**
      * The Handler that gets information back from the BluetoothChatService
      */
+    private String mPreviousMsg;
     private final Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -311,7 +316,11 @@ public class BluetoothChatFragment extends Fragment {
                     byte[] readBuf = (byte[]) msg.obj;
                     // construct a string from the valid bytes in the buffer
                     String readMessage = new String(readBuf, 0, msg.arg1);
-                    mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
+
+                    if (readMessage!=null && !readMessage.equals(mPreviousMsg)) {
+                        mConversationArrayAdapter.add("Other:  " + readMessage);
+                        mPreviousMsg = readMessage;
+                    }
                     break;
                 case Constants.MESSAGE_DEVICE_NAME:
                     // save the connected device's name
@@ -403,6 +412,10 @@ public class BluetoothChatFragment extends Fragment {
             }
             case R.id.startGattServer: {
                 startBLEServer();
+                return true;
+            }
+            case R.id.searchBLE: {
+                searchBLE();
                 return true;
             }
         }
