@@ -21,6 +21,7 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -43,6 +44,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.android.common.logger.Log;
+
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 /**
  * This fragment controls Bluetooth to communicate with other devices.
@@ -311,6 +321,10 @@ public class BluetoothChatFragment extends Fragment {
                     // construct a string from the buffer
                     String writeMessage = new String(writeBuf);
                     mConversationArrayAdapter.add("Me:  " + writeMessage);
+
+                    if (mDoForward) {
+                        new postToServerTask().execute(writeMessage);
+                    }
                     break;
                 case Constants.MESSAGE_READ:
                     byte[] readBuf = (byte[]) msg.obj;
@@ -320,6 +334,9 @@ public class BluetoothChatFragment extends Fragment {
                     if (readMessage!=null && !readMessage.equals(mPreviousMsg)) {
                         mConversationArrayAdapter.add("Other:  " + readMessage);
                         mPreviousMsg = readMessage;
+                        if (mDoForward) {
+                            new postToServerTask().execute(readMessage);
+                        }
                     }
                     break;
                 case Constants.MESSAGE_DEVICE_NAME:
@@ -369,6 +386,67 @@ public class BluetoothChatFragment extends Fragment {
         }
     }
 
+
+    public class postToServerTask extends AsyncTask<String, String, String> {
+
+        public postToServerTask(){
+            //set context variables if required
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected String doInBackground(String... params) {
+            String urlString = "https://hooks.slack.com/services/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";
+            String msg = params[0]; //data to post
+            OutputStream out = null;
+
+            try {
+                URL url = new URL(urlString);
+                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+//                urlConnection.setDoOutput(true);
+                urlConnection.setRequestMethod("POST");
+//                urlConnection.setRequestProperty("Accept-Charset", "UTF-8");
+                urlConnection.setRequestProperty("Content-type", "application/json");
+
+//                urlConnection.setReadTimeout(10000);
+//                urlConnection.setConnectTimeout(15000);
+                urlConnection.connect();
+
+                out = new BufferedOutputStream(urlConnection.getOutputStream());
+
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out, "UTF-8"));
+                String data = "{\"text\":\"" + msg + "\"}";
+                writer.write(data);
+                writer.flush();
+                writer.close();
+                out.close();
+
+
+                BufferedReader br;
+                if (200 <= urlConnection.getResponseCode() && urlConnection.getResponseCode() <= 299) {
+                    br = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+                } else {
+                    br = new BufferedReader(new InputStreamReader(urlConnection.getErrorStream()));
+                }
+                String s;
+                while ((s=br.readLine())!=null)
+                {
+                    Log.d(TAG, "URL response " + s);
+                }
+                Log.d(TAG, "done");
+
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
+            }
+
+            return null;
+        }
+    }
+
     /**
      * Establish connection with other device
      *
@@ -389,6 +467,9 @@ public class BluetoothChatFragment extends Fragment {
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.bluetooth_chat, menu);
     }
+
+
+    private boolean mDoForward = false;  // should I forward all messages to internet
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -417,6 +498,16 @@ public class BluetoothChatFragment extends Fragment {
             case R.id.searchBLE: {
                 searchBLE();
                 return true;
+            }
+            case R.id.toggleForward: {
+                if(item.getTitle().equals("Forward to Internet")) {
+                    item.setTitle("Stop forward to Internet");
+                    mDoForward = true;
+                } else {
+                    item.setTitle("Forward to Internet");
+                    mDoForward = false;
+                }
+                break;
             }
         }
         return false;

@@ -41,4 +41,9 @@
         android:showAsAction="never"
         android:title="Search BLE device"/>
 
+    <item
+        android:id="@+id/toggleForward"
+        android:showAsAction="never"
+        android:title="Forward to Internet"/>
+
 </menu>
