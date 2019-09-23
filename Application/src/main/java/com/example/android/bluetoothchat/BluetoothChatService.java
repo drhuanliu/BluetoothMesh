@@ -206,6 +206,19 @@ public class BluetoothChatService {
         }
     };
 
+    private void updateDeviceName(String prefix, String name) {
+        // Send the name of the connected device back to the UI Activity
+        Message msg = mHandler.obtainMessage(Constants.MESSAGE_DEVICE_NAME);
+        Bundle bundle = new Bundle();
+
+        // name is always null, maybe the one initiating connection is never passing its own name
+        bundle.putString(Constants.DEVICE_NAME, prefix + " " + name);
+        msg.setData(bundle);
+        mHandler.sendMessage(msg);
+        // Update UI title
+        updateUserInterfaceTitle();
+    }
+
     /**
      * Callback to handle incoming requests to the GATT server.
      */
@@ -216,17 +229,10 @@ public class BluetoothChatService {
             //连接状态改变
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 mState = STATE_CONNECTED;
-                // Send the name of the connected device back to the UI Activity
-                Message msg = mHandler.obtainMessage(Constants.MESSAGE_DEVICE_NAME);
-                Bundle bundle = new Bundle();
 
-                // name is always null, maybe the one initiating connection is never passing its own name
-                bundle.putString(Constants.DEVICE_NAME, "BLES " + device.getName());
-                msg.setData(bundle);
-                mHandler.sendMessage(msg);
-                // Update UI title
-                updateUserInterfaceTitle();
+                mBluetoothGattServer.setPreferredPhy(device, BluetoothDevice.PHY_LE_CODED_MASK, BluetoothDevice.PHY_LE_CODED_MASK, BluetoothDevice.PHY_OPTION_S8);
 
+                updateDeviceName("BLES", device.getName());
 
                 Log.i("", "BluetoothDevice CONNECTED: " + device);
                 mRegisteredDevices.add(device);
@@ -320,6 +326,14 @@ public class BluetoothChatService {
                         .sendToTarget();
             }
         }
+
+
+        @Override
+        public void onPhyUpdate(BluetoothDevice device, int txPhy, int rxPhy, int status) {
+            super.onPhyUpdate(device, txPhy, rxPhy, status);
+
+            updateDeviceName("S" + rxPhy + "_" +txPhy, device.getName());
+        }
     };
 
 
@@ -355,6 +369,8 @@ public class BluetoothChatService {
 
                     mBluetoothGatt = device.connectGatt(mContext, false, gattCallback);
 
+                    mBluetoothGatt.setPreferredPhy(BluetoothDevice.PHY_LE_CODED_MASK, BluetoothDevice.PHY_LE_CODED_MASK, BluetoothDevice.PHY_OPTION_S8);
+
                     // just need one device right now, without this, it seems to get in repeated disconnect state
                     stopScanLeDevice();
                 }
@@ -372,14 +388,7 @@ public class BluetoothChatService {
                         mState = STATE_CONNECTED;
                         mLEMode = LEMODE_CLIENT;
 
-                        // Send the name of the connected device back to the UI Activity
-                        Message msg = mHandler.obtainMessage(Constants.MESSAGE_DEVICE_NAME);
-                        Bundle bundle = new Bundle();
-                        bundle.putString(Constants.DEVICE_NAME, "BLEC " + mLeDevice.getName());
-                        msg.setData(bundle);
-                        mHandler.sendMessage(msg);
-                        // Update UI title
-                        updateUserInterfaceTitle();
+                        updateDeviceName("BLEC", mLeDevice.getName());
 
                         Log.i(TAG, "Connected to GATT server.");
                         Log.i(TAG, "Attempting to start service discovery:" +
@@ -471,7 +480,19 @@ public class BluetoothChatService {
 
                     Log.d(TAG, "read value " + messageString);
                 }
-    };
+
+                @Override
+                public void onPhyUpdate(BluetoothGatt gatt, int txPhy, int rxPhy, int status) {
+                    super.onPhyUpdate(gatt, txPhy, rxPhy, status);
+
+                    updateDeviceName("C" + rxPhy + "_" +txPhy, mLeDevice.getName());
+                }
+
+                @Override
+                public void onPhyRead(BluetoothGatt gatt, int txPhy, int rxPhy, int status) {
+                    super.onPhyRead(gatt, txPhy, rxPhy, status);
+                }
+            };
 
 
 
@@ -580,18 +601,11 @@ public class BluetoothChatService {
         mConnectedThreads.add(nt);
 
         // Send the name of the connected device back to the UI Activity
-        Message msg = mHandler.obtainMessage(Constants.MESSAGE_DEVICE_NAME);
-        Bundle bundle = new Bundle();
-
         String deviceNames = mConnectedThreads.size() + " ";
         for (ConnectedThread t : mConnectedThreads)
             deviceNames += t.mDevice.getName() + ",";
 
-        bundle.putString(Constants.DEVICE_NAME, deviceNames);
-        msg.setData(bundle);
-        mHandler.sendMessage(msg);
-        // Update UI title
-        updateUserInterfaceTitle();
+        updateDeviceName("", deviceNames);
     }
 
     /**
@@ -921,6 +935,8 @@ public class BluetoothChatService {
                     mHandler.obtainMessage(Constants.MESSAGE_READ, bytes, -1, buffer)
                             .sendToTarget();
 
+                    Log.d(TAG, "Classic received " + new String(buffer));
+
                     // also forward to other connections to simulate multihop routing
                     // this should be executing in our current thread
                     // This will not generate IOException, which will cause this connection to die
@@ -945,7 +961,7 @@ public class BluetoothChatService {
          *
          * @param buffer The bytes to write
          */
-        public void write(byte[] buffer) {
+        public synchronized void write(byte[] buffer) {
             try {
                 mmOutStream.write(buffer);
             } catch (IOException e) {
